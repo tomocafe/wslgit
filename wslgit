@@ -1,0 +1,98 @@
+#!/bin/bash
+
+# git wrapper for use in WSL
+# If run from the WSL/Linux filesystem, invokes Linux git
+# If run from the Windows filesystem, invokes Windows git.exe under cmd shell
+#
+# All arguments are passed to git.
+#
+# Suggested usage: add these lines to your bashrc / bash_profile:
+# ```
+# git () { wslgit "$@"; }
+# export -f git
+# ```
+
+WSLPWD="${WSLPWD:-$(wslpath -m .)}"
+
+if [[ $(wslpath -m "$WSLPWD") == //wsl* ]]; then
+    # We're in the Linux filesystem, so just use Linux/WSL git
+    exec git "$@"
+fi
+
+# Check for custom subcommand
+if [[ $# -gt 0 ]]; then
+    subcmd="git-$1"
+    if command -v "$subcmd" &>/dev/null; then
+        shift 1
+        exec "$subcmd" "$@"
+    fi
+fi
+
+# Check for required subcommand
+if [[ -n $WSLGIT_ONLY ]]; then
+    pass=true
+    if [[ $# -gt 0 ]]; then
+        for subcmd in $WSLGIT_ONLY; do
+            if [[ $1 == $subcmd ]]; then
+                pass=false
+                break
+            fi
+        done
+    fi
+    if $pass; then
+        exec git "$@"
+    fi
+fi
+
+# Check for ignored subcommand
+if [[ -n $WSLGIT_IGNORE && $# -gt 0 ]]; then
+    for subcmd in $WSLGIT_IGNORE; do
+        if [[ $1 == $subcmd ]]; then
+            exec git "$@"
+        fi
+    done
+fi
+
+# We're in the Windows filesystem, use Windows git
+
+[[ -t 1 && ! -n $WSLGIT_QUIET ]] && { echo "wslgit: switching to Windows git"; }
+
+command -v cmd.exe &>/dev/null || { echo "cannot find cmd.exe" 1>&2; exit 1; }
+
+WSLGIT_EXE="${WSLGIT_EXE:-git.exe}"
+
+# Adjust paths in arguments to Windows format
+adjusted_args=()
+for arg in "$@"; do
+    case "$arg" in
+        --git-dir=*)
+            adjusted_args+=("--git-dir=$(wslpath -m "${arg#--git-dir=}")")
+            ;;
+        --work-tree=*)
+            adjusted_args+=("--work-tree=$(wslpath -m "${arg#--work-tree=}")")
+            ;;
+        --exec-path=*)
+            adjusted_args+=("--exec-path=$(wslpath -m "${arg#--exec-path=}")")
+            ;;
+        -C)
+            adjusted_args+=("-C" "$(wslpath -m "$2")")
+            shift
+            ;;
+        [/~]*)
+            [[ -e "$arg" ]] && adjusted_args+=("$(wslpath -m "$arg")") || adjusted_args+=("$arg")
+            ;;
+        *)
+            adjusted_args+=("$arg")
+            ;;
+    esac
+done
+
+# Escape all arguments
+escaped_args=()
+for arg in "${adjusted_args[@]}"; do
+    escaped_args+=("$(printf "%q" "$arg")")
+done
+
+# Invoke Windows git
+[[ -t 1 && -n $WSLGIT_DEBUG ]] && { echo "wslgit: debug: cmd.exe /c \"cd /d \"$WSLPWD\" && \"$WSLGIT_EXE\" ${escaped_args[@]}\""; }
+exec cmd.exe /c "cd /d "$WSLPWD" && "$WSLGIT_EXE" "${escaped_args[@]}""
