@@ -23,6 +23,15 @@ Most likely it will *just work*, but there are some environment variables you ca
 * `WSLGIT_DEBUG`: prints the final command
 * `WSLPWD`: the working directory when invoked (defaults to `.`)
 
+### Override
+
+If you want to override the wrapper and use the native WSL `git`, use one the following methods (assuming your shell is bash):
+
+```bash
+$ command git ...       # always works
+$ \git ...              # only if you used alias instead of function
+```
+
 ## Details
 
 This wrapper works with:
