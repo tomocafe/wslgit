@@ -63,7 +63,8 @@ WSLGIT_EXE="${WSLGIT_EXE:-git.exe}"
 
 # Adjust paths in arguments to Windows format
 adjusted_args=()
-for arg in "$@"; do
+while [[ $# -gt 0 ]]; do
+    arg="$1"
     case "$arg" in
         --git-dir=*)
             adjusted_args+=("--git-dir=$(wslpath -m "${arg#--git-dir=}")")
@@ -85,6 +86,7 @@ for arg in "$@"; do
             adjusted_args+=("$arg")
             ;;
     esac
+    shift
 done
 
 # Escape all arguments
