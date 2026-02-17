@@ -57,9 +57,9 @@ fi
 
 [[ -t 1 && ! -n $WSLGIT_QUIET ]] && { echo "wslgit: switching to Windows git"; }
 
-command -v cmd.exe &>/dev/null || { echo "cannot find cmd.exe" 1>&2; exit 1; }
-
 WSLGIT_EXE="${WSLGIT_EXE:-git.exe}"
+
+command -v "$WSLGIT_EXE" &>/dev/null || { echo "cannot find $WSLGIT_EXE in Windows path" 1>&2; exit 1; }
 
 # Adjust paths in arguments to Windows format
 adjusted_args=()
@@ -89,12 +89,6 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-# Escape all arguments
-escaped_args=()
-for arg in "${adjusted_args[@]}"; do
-    escaped_args+=("$(printf "%q" "$arg")")
-done
-
-# Invoke Windows git
-[[ -t 1 && -n $WSLGIT_DEBUG ]] && { echo "wslgit: debug: cmd.exe /c \"cd /d \"$WSLPWD\" && \"$WSLGIT_EXE\" ${escaped_args[@]}\""; }
-exec cmd.exe /c "cd /d "$WSLPWD" && "$WSLGIT_EXE" "${escaped_args[@]}""
+# Invoke Windows git using interop
+[[ -t 1 && -n $WSLGIT_DEBUG ]] && { echo "wslgit: debug: $WSLGIT_EXE ${adjusted_args[@]}"; }
+exec "$WSLGIT_EXE" "${adjusted_args[@]}"
